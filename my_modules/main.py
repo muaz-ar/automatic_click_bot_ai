@@ -5,10 +5,14 @@ from selenium.webdriver.common.by import By
 from selenium.common.exceptions import NoSuchElementException
 import os 
 from dotenv import load_dotenv
+from openai import OpenAI
+client = OpenAI()
+ 
 load_dotenv()
 
 USER = os.getenv('USER')
 KEY = os.getenv('KEY')
+CahtGPT_API = os.getenv('CahtGPT_API')
 
 options = Options()
 options.add_argument('-no-remote')
@@ -51,4 +55,38 @@ click_button_if_exists('/html/body/div[3]/div[1]/div[2]/div[2]/div[1]/div[2]/for
 
 driver.get(url_test_seite)
 
-#frage = find_by_xpath()
+quiz_frage = find_by_xpath('/html/body/div[1]/div/div/main/div/div[1]/div[1]/div/form/span/p').text
+
+antworten = []
+
+for i in range(1, 6):
+    xpath = '/html/body/div[1]/div/div/main/div/div[1]/div[1]/div/form/table/tbody/tr[{}]/td[1]/label'.format(i)
+    try:
+        antwort_element = driver.find_element(By.XPATH, xpath)
+        antwort = antwort_element.text
+        antworten.append(antwort)
+    except NoSuchElementException:
+        break
+
+   # Die einzelnen Zeilen in Variablen speichern 
+    antwort_1 = antworten[0] if len(antworten) >= 1 else ""
+    antwort_2 = antworten[1] if len(antworten) >= 2 else ""
+    antwort_3 = antworten[2] if len(antworten) >= 3 else ""
+    antwort_4 = antworten[3] if len(antworten) >= 4 else ""
+    antwort_5 = antworten[4] if len(antworten) >= 5 else ""
+
+def question(quiz_frage, antwort_1, antwort_2, antwort_3, antwort_4, antwort_5):
+    antworten = [antwort_1, antwort_2, antwort_3, antwort_4, antwort_5]
+    meine_frage = "Meine Frage lautet: " + quiz_frage + "\nAntwortmöglichkeiten lauten:\n" + "\n".join(antworten)
+    meine_frage += "\ngib mir die antworten zu jeder zeile die als antwort sein könnte mit ja oder nein zeilenweise wieder"
+    print(meine_frage)
+
+request = question(quiz_frage, antwort_1, antwort_2, antwort_3, antwort_4, antwort_5)
+
+def chat(prompt):
+    completions = client.chat.Completion.create(model="gpt-3.5-turbo", prompt=prompt, max_tokens=1024, api_key=CahtGPT_API)
+    responses = completions.choices[0].text.strip().split('\n')[:-1]  # Teilt die Antwort in einzelne Zeilen auf
+
+    return responses
+
+ergebnisse = chat(request)
