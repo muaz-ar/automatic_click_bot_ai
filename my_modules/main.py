@@ -5,14 +5,14 @@ from selenium.webdriver.common.by import By
 from selenium.common.exceptions import NoSuchElementException
 import os 
 from dotenv import load_dotenv
-from openai import OpenAI
-client = OpenAI()
- 
+import openai 
+import time 
 load_dotenv()
 
 USER = os.getenv('USER')
 KEY = os.getenv('KEY')
 CahtGPT_API = os.getenv('CahtGPT_API')
+openai.api_key = CahtGPT_API
 
 options = Options()
 options.add_argument('-no-remote')
@@ -55,38 +55,121 @@ click_button_if_exists('/html/body/div[3]/div[1]/div[2]/div[2]/div[1]/div[2]/for
 
 driver.get(url_test_seite)
 
-quiz_frage = find_by_xpath('/html/body/div[1]/div/div/main/div/div[1]/div[1]/div/form/span/p').text
+counter = 0
 
-antworten = []
+def clickfunktion():
+    global counter
+    while True:
+        quiz_frage = find_by_xpath('/html/body/div[1]/div/div/main/div/div[1]/div[1]/div/form/span/p').text
 
-for i in range(1, 6):
-    xpath = '/html/body/div[1]/div/div/main/div/div[1]/div[1]/div/form/table/tbody/tr[{}]/td[1]/label'.format(i)
-    try:
-        antwort_element = driver.find_element(By.XPATH, xpath)
-        antwort = antwort_element.text
-        antworten.append(antwort)
-    except NoSuchElementException:
+        antworten = []
+
+        for i in range(1, 6):
+            xpath = '/html/body/div[1]/div/div/main/div/div[1]/div[1]/div/form/table/tbody/tr[{}]/td[1]/label'.format(i)
+            try:
+                antwort_element = find_by_xpath(xpath)
+                antwort = antwort_element.text
+                antworten.append(antwort)
+            except NoSuchElementException:
+                break
+
+        # Die einzelnen Zeilen in Variablen speichern 
+            antwort_1 = antworten[0] if len(antworten) >= 1 else ""
+            antwort_2 = antworten[1] if len(antworten) >= 2 else ""
+            antwort_3 = antworten[2] if len(antworten) >= 3 else ""
+            antwort_4 = antworten[3] if len(antworten) >= 4 else ""
+            antwort_5 = antworten[4] if len(antworten) >= 5 else ""
+
+        time.sleep(2)
+
+        def question(quiz_frage, antwort_1, antwort_2, antwort_3, antwort_4, antwort_5):
+            antworten = [antwort_1, antwort_2, antwort_3, antwort_4, antwort_5]
+            meine_frage = "Meine Frage lautet: " + quiz_frage + "\nAntwortmöglichkeiten lauten:\n" + "\n".join(antworten)
+            meine_frage += "\ngib mir die antworten zu jeder zeile der antwortmöglichkeiten mit ja oder nein zeilenweise wieder." 
+            meine_frage += "es kann auch sein das die antwortmöglichkeit ein nein ist, dies ist auch nur mit ja oder nein zu beantworten."
+            meine_frage += "eine sehr wichtige sache ist, das du nur ja oder nein antworten gibst. kein weiteres komentar gar nichts. nur ja oder nein."
+            meine_frage += "wenn du das verstanden hast, dann gib mir bitte die antworten zu jeder zeile der antwortmöglichkeiten mit ja oder nein zeilenweise wieder."
+            meine_frage += "füge auch keine interventionen ein, wie Die Antworten zu den einzelnen Aussagen lauten wie folgt: oder sonst irgendwelche sonderzeichen zeilenumbrüche etc. "
+            print(meine_frage)
+
+            return meine_frage
+
+
+
+        # Stelle sicher, dass openai.api_key zu Beginn deines Skripts oder vor dem API-Aufruf gesetzt wird
+        openai.api_key = CahtGPT_API
+
+        def chat(prompt):
+            try:
+                response = openai.ChatCompletion.create(
+                    model="gpt-3.5-turbo", # Aktualisieren Sie dies entsprechend Ihrem gewünschten Modell, z.B. auf ein GPT-4 Modell, falls verfügbar und gewünscht
+                    messages=[
+                        {"role": "user", "content": prompt}
+                    ]
+                )
+                time.sleep(3)
+                # Die Annahme hier ist, dass die Antwort in einem Format zurückgegeben wird, das direkt verwendet werden kann.
+                # Dies könnte je nach Ihrer spezifischen Anforderung variieren.
+                responses = response['choices'][0]['message']['content'].strip().split('\n')
+                
+                # Filtern, um nur "ja" oder "nein" zu behalten
+                gefilterte_antworten = [antwort for antwort in responses if antwort.strip().lower() in ["ja", "nein"]]
+                time.sleep(3)
+                return gefilterte_antworten
+            except Exception as e:
+                print(f"Ein Fehler ist aufgetreten: {e}")
+                return []
+        time.sleep(3)
+        # Beispiel für die Verwendung der angepassten Funktion
+        frage = question(quiz_frage, antwort_1, antwort_2, antwort_3, antwort_4, antwort_5)
+        ergebnisse = chat(frage)
+        print(ergebnisse)
+
+        ergebnisse_zeilen = []
+
+        if len(ergebnisse) > 0 and ergebnisse[0] != '.':
+            for ergebnis in ergebnisse:
+                ergebnisse_zeilen.extend(ergebnis.strip().split("\n"))
+        else:
+            print("Keine Ergebnisse erhalten oder ungültiges Ergebnis.")
+                
+        time.sleep(3)
+        
+
+        def execute_command_based_on_answer(answer, zeilennummer):
+            if answer.lower() == 'ja':
+                # Führe den Befehl aus, wenn die Antwort "ja" ist
+                xpath = '/html/body/div[1]/div/div/main/div/div[1]/div[1]/div/form/table/tbody/tr[{}]/td[1]/label'.format(zeilennummer)
+                element = find_by_xpath(xpath)
+                element.click()
+            elif answer.lower() == 'nein':
+                # Führe keinen Befehl aus, wenn die Antwort "nein" ist
+                pass
+
+        time.sleep(3)
+    
+
+        for i, ergebnis in enumerate(ergebnisse_zeilen):
+            print(f"Antwort für Zeile {i+1}: {ergebnis}")
+            execute_command_based_on_answer(ergebnis, i+1)
+
+        button_weiter = find_by_xpath('/html/body/div[1]/div/div/main/div/div[1]/div[1]/div/form/div[3]/span/input')
+        button_weiter.click()     
+        time.sleep(3)
+        counter += 1
+
+        # Überprüfen, ob der Zähler neun erreicht hat
+        if counter == 10:
+            break
+
+clickfunktion()
+
+counter = 0
+while True:    
+    save_result = find_by_xpath('/html/body/div[1]/div/div/main/div/div[1]/div[1]/div/div[2]/table/tbody/tr/td[1]/a')
+    save_result.click()
+    driver.get(url_test_seite)
+    clickfunktion()
+    counter += 1
+    if counter == 10:
         break
-
-   # Die einzelnen Zeilen in Variablen speichern 
-    antwort_1 = antworten[0] if len(antworten) >= 1 else ""
-    antwort_2 = antworten[1] if len(antworten) >= 2 else ""
-    antwort_3 = antworten[2] if len(antworten) >= 3 else ""
-    antwort_4 = antworten[3] if len(antworten) >= 4 else ""
-    antwort_5 = antworten[4] if len(antworten) >= 5 else ""
-
-def question(quiz_frage, antwort_1, antwort_2, antwort_3, antwort_4, antwort_5):
-    antworten = [antwort_1, antwort_2, antwort_3, antwort_4, antwort_5]
-    meine_frage = "Meine Frage lautet: " + quiz_frage + "\nAntwortmöglichkeiten lauten:\n" + "\n".join(antworten)
-    meine_frage += "\ngib mir die antworten zu jeder zeile die als antwort sein könnte mit ja oder nein zeilenweise wieder"
-    print(meine_frage)
-
-request = question(quiz_frage, antwort_1, antwort_2, antwort_3, antwort_4, antwort_5)
-
-def chat(prompt):
-    completions = client.chat.Completion.create(model="gpt-3.5-turbo", prompt=prompt, max_tokens=1024, api_key=CahtGPT_API)
-    responses = completions.choices[0].text.strip().split('\n')[:-1]  # Teilt die Antwort in einzelne Zeilen auf
-
-    return responses
-
-ergebnisse = chat(request)
