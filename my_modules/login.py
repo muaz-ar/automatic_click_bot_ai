@@ -10,9 +10,9 @@ url_test_seite = "https://internet.partnerportal-deutschepost.de/verkaufsunterst
 def login():
     driver.get(url_login)
     user_bar = driver.find_element(By.XPATH, '//*[@id="loginUser"]')
-    user_bar.send_keys(USER)
+    user_bar.send_keys(23026370)
     key_bar = driver.find_element(By.XPATH, '//*[@id="loginPlaintextPassword"]')
-    key_bar.send_keys(KEY)
+    key_bar.send_keys('Omer21102019!!1')
     button_login = driver.find_element(By.XPATH, '/html/body/div[1]/div/div/main/div[4]/div/form/fieldset/div[3]/input')
     button_login.click()
     def click_button_if_exists(xpath):
