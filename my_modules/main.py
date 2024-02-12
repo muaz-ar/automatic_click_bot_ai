@@ -5,10 +5,3 @@ from auto_click_main import click_save_loop
 
 login()
 click_save_loop()
-
-
-
-
-
-
-
